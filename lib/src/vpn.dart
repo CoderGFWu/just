@@ -4,10 +4,13 @@ import 'dart:io';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/adapter.dart';
 import 'package:dio/dio.dart';
+import 'package:gbk2utf8/gbk2utf8.dart' as dd;
 import 'package:html/parser.dart';
 import 'package:just/src/pj_course.dart';
 import 'package:just/src/private_cookie_manager.dart';
-import 'package:gbk2utf8/gbk2utf8.dart' as dd;
+import 'package:just/src/utils.dart';
+import 'package:pedantic/pedantic.dart';
+
 import 'error.dart';
 
 class VPN {
@@ -32,6 +35,10 @@ class VPN {
       'https://vpn.just.edu.cn/jsxsd/xskb/,DanaInfo=jwgl.just.edu.cn,Port=8080+xskb_list.do';
   static const String peVpnLoginUrl =
       'https://vpn.just.edu.cn/,DanaInfo=tyxy.just.edu.cn+index1.asp';
+  static const String vpnBaseUrl = 'https://vpn.just.edu.cn';
+  static const String tyBaseUrl = 'http://tyxy.just.edu.cn';
+  static const String jwBaseUrl = 'http://jwgl.just.edu.cn:8080';
+
   static final cookieJar = CookieJar();
 
   factory VPN() => _getInstance();
@@ -51,9 +58,10 @@ class VPN {
     };
     _dio.interceptors.add(PrivateCookieManager(cookieJar));
     _dio.options = BaseOptions(
+      baseUrl: vpnBaseUrl,
       contentType: 'application/x-www-form-urlencoded',
       followRedirects: false,
-      connectTimeout: 20000,
+      connectTimeout: 10000,
       validateStatus: (status) {
         return status < 500;
       },
@@ -65,13 +73,15 @@ class VPN {
     return _instance;
   }
 
-//验证VPN账号
+  ///验证VPN账号
+  ///[username]VPN用户名
+  ///[password]VPN密码
   Future<void> validateVPN({String username, String password}) async {
     assert(username != null);
     assert(password != null);
     Response response;
     try {
-      response = await _dio.get(vpnWelcomeUrl);
+      response = await _dio.get('/dana-na/auth/url_default/welcome.cgi');
     } on DioError catch (e) {
       if (e.type == DioErrorType.CONNECT_TIMEOUT) {
         throw JustVPNError('VPN系统访问不通');
@@ -97,31 +107,32 @@ class VPN {
       var value = parse(response.data)
           .getElementById('DSIDFormDataStr')
           .attributes['value'];
-      await _dio.post(vpnLoginUrl,
+      await _dio.post('/dana-na/auth/url_default/login.cgi',
           data: {'btnContinue': '继续会话', 'FormDataStr': value});
-      response = await _dio
-          .get('https://vpn.just.edu.cn/dana/home/starter0.cgi?check=yes');
+      response = await _dio.get('/dana/home/starter0.cgi?check=yes');
       await _dio.get(vpnLogoutUrl);
       response = await _dio.post(
-        vpnLoginUrl,
+        '/dana-na/auth/url_default/login.cgi',
         data: submitData,
       );
     }
     var locationValue = response.headers.value('location');
-    await _dio.get(vpnLogoutUrl);
+    await _dio.get('/dana-na/auth/logout.cgi');
     var status = locationValue.substring(locationValue.indexOf('=') + 1);
     if (status == 'failed') {
       throw JustAccountError('VPN账号或密码错误');
     }
   }
 
-//VPN登录
+  ///VPN登录
+  ///[vpnUsername]VPN账号
+  ///[vpnPassword]VPN密码
   Future<Response> vpnLogin({String vpnUsername, String vpnPassword}) async {
     assert(vpnUsername != null);
     assert(vpnPassword != null);
     Response response;
     try {
-      response = await _dio.get(vpnWelcomeUrl);
+      response = await _dio.get('/dana-na/auth/url_default/welcome.cgi');
     } on DioError catch (e) {
       if (e.type == DioErrorType.CONNECT_TIMEOUT) {
         throw JustVPNError('VPN系统访问不通');
@@ -137,7 +148,8 @@ class VPN {
     });
     submitData['username'] = vpnUsername;
     submitData['password'] = vpnPassword;
-    response = await _dio.post(vpnLoginUrl, data: submitData);
+    response = await _dio.post('/dana-na/auth/url_default/login.cgi',
+        data: submitData);
     var location = response.headers.value('location');
     if (location ==
         'https://vpn.just.edu.cn/dana-na/auth/url_default/welcome.cgi?p=failed') {
@@ -148,20 +160,25 @@ class VPN {
       var value = parse(response.data)
           .getElementById('DSIDFormDataStr')
           .attributes['value'];
-      await _dio.post(vpnLoginUrl,
+      await _dio.post('/dana-na/auth/url_default/login.cgi',
           data: {'btnContinue': '继续会话', 'FormDataStr': value});
-      await _dio
-          .get('https://vpn.just.edu.cn/dana/home/starter0.cgi?check=yes');
+      await _dio.get('/dana/home/starter0.cgi?check=yes');
     }
     return response;
   }
 
-//VPN登出
+  ///VPN登出
   Future<void> vpnLogout() async {
-    await _dio.get(vpnLogoutUrl).catchError((error) => print(error));
+    await _dio
+        .get('/dana-na/auth/logout.cgi')
+        .catchError((error) => print(error));
   }
 
-//验证教务系统账号
+  ///验证教务系统账号
+  ///[username]教务系统账号
+  ///[password]教务系统密码
+  ///[vpnUsername]VPN账号
+  ///[vpnPassword]VPN密码
   Future<void> validateJw(
       {String username,
       String password,
@@ -174,20 +191,28 @@ class VPN {
     await vpnLogin(vpnUsername: vpnUsername, vpnPassword: vpnPassword);
     var loginData = {'USERNAME': username, 'PASSWORD': password};
     var response = await _dio.post(
-      jwVpnLoginPostUrl,
+      Utils.convert2vpnUrl('${jwBaseUrl}/jsxsd/xk/LoginToXk'),
       data: loginData,
     );
     var location = response.headers.value('location');
     if (location == 'https://vpn.just.edu.cn/dana-na/auth/welcome.cgi') {
       throw JustVPNError('教务系统访问不通');
     }
-    if (location != jwVpnHomeUrl && location != jwVpnSetPasswordUrl) {
+    if (location !=
+            Utils.convert2vpnUrl('${jwBaseUrl}/jsxsd/framework/xsMain.jsp') &&
+        location !=
+            Utils.convert2vpnUrl('${jwBaseUrl}/jsxsd/grsz/grsz_xgmm_beg.do')) {
       throw JustAccountError('教务系统账号或密码不正确');
     }
-    vpnLogout();
+    unawaited(vpnLogout());
     return response;
   }
 
+  ///验证实验系统账号
+  ///[username]实验系统账号
+  ///[password]实验系统密码
+  ///[vpnUsername]VPN账号
+  ///[vpnPassword]VPN密码
   Future<void> validateSy(
       {String username,
       String password,
@@ -216,9 +241,14 @@ class VPN {
     }
     response = await _dio
         .get("https://vpn.just.edu.cn${response.headers.value("location")}");
-    vpnLogout();
+    unawaited(vpnLogout());
   }
 
+  ///验证体育系统账号
+  ///[username]体育系统账号
+  ///[password]体育系统密码
+  ///[vpnUsername]VPN账号
+  ///[vpnPassword]VPN密码
   Future<void> validatePe(
       {String username,
       String password,
@@ -229,7 +259,8 @@ class VPN {
     assert(vpnUsername != null);
     assert(vpnPassword != null);
     await vpnLogin(vpnUsername: vpnUsername, vpnPassword: vpnPassword);
-    var response = await _dio.post(peVpnLoginUrl,
+    var response = await _dio.post(
+        Utils.convert2vpnUrl('${tyBaseUrl}/index1.asp'),
         data: {'username': username, 'password': password, 'chkuser': 'true'},
         options: Options(responseDecoder: gbk2Utf8Decoder));
     var info = parse(response.data).querySelector('#autonumber2 p');
@@ -238,7 +269,11 @@ class VPN {
     }
   }
 
-//教务系统登录
+  ///教务系统登录
+  ///[username]教务系统账号
+  ///[password]教务系统密码
+  ///[vpnUsername]VPN账号
+  ///[vpnPassword]VPN密码
   Future<Response> jwVpnLogin(
       {String username,
       String password,
@@ -258,25 +293,33 @@ class VPN {
     if (location == 'https://vpn.just.edu.cn/dana-na/auth/welcome.cgi') {
       throw JustVPNError('教务系统访问不通');
     }
-    if (location != jwVpnHomeUrl && location != jwVpnSetPasswordUrl) {
+    if (location !=
+            Utils.convert2vpnUrl('${jwBaseUrl}/jsxsd/framework/xsMain.jsp') &&
+        location !=
+            Utils.convert2vpnUrl('${jwBaseUrl}/jsxsd/grsz/grsz_xgmm_beg.do')) {
       throw JustAccountError('教务系统账号或密码不正确');
     }
     return response;
   }
 
-//教务系统登出
+  ///教务系统登出
   Future<void> jwVpnLogout() async {
     try {
-      await _dio.get(jwVpnLoginPostUrl, queryParameters: {
-        'method': 'exit',
-        'tktime': DateTime.now().millisecondsSinceEpoch
-      });
+      await _dio.get(Utils.convert2vpnUrl('${jwBaseUrl}/jsxsd/xk/LoginToXk'),
+          queryParameters: {
+            'method': 'exit',
+            'tktime': DateTime.now().millisecondsSinceEpoch
+          });
     } catch (e) {
       print(e);
     }
   }
 
-//获取成绩
+  ///获取成绩
+  ///[username]教务系统账号
+  ///[password]教务系统密码
+  ///[vpnUsername]VPN账号
+  ///[vpnPassword]VPN密码
   Future<String> getScore(
       {String username,
       String password,
@@ -295,13 +338,18 @@ class VPN {
         password: password,
         vpnUsername: vpnUsername,
         vpnPassword: vpnPassword);
-    var response = await _dio.post(jwVpnScoreUrl,
+    var response = await _dio.post(
+        Utils.convert2vpnUrl('${jwBaseUrl}/jsxsd/kscj/cjcx_list'),
         data: {'kksj': kksj, 'kcxz': '', 'kcmc': '', 'xsfs': xsfs});
-    jwVpnLogout().then((value) => vpnLogout());
+    unawaited(jwVpnLogout().then((value) => vpnLogout()));
     return response.data;
   }
 
-//获取成绩替代的成绩
+  ///获取成绩替代的成绩
+  ///[username]教务系统账号
+  ///[password]教务系统密码
+  ///[vpnUsername]VPN账号
+  ///[vpnPassword]VPN密码
   Future<String> getScore2(
       {String username,
       String password,
@@ -320,13 +368,18 @@ class VPN {
         vpnPassword: vpnPassword);
     var data = {'kch': '', 'xnxq01id': kksj};
     var response = await _dio.post(
-      'https://vpn.just.edu.cn/jsxsd/kscj/,DanaInfo=jwgl.just.edu.cn,Port=8080+cjtd_add_left',
+      Utils.convert2vpnUrl('${jwBaseUrl}/jsxsd/kscj/cjtd_add_left'),
       data: data,
     );
-    jwVpnLogout().then((value) => vpnLogout());
+    unawaited(jwVpnLogout().then((value) => vpnLogout()));
     return response.data;
   }
 
+  ///获取体育成绩
+  ///[username]体育系统账号
+  ///[password]体育系统密码
+  ///[vpnUsername]VPN账号
+  ///[vpnPassword]VPN密码
   Future<String> getSportScore(
       {String username,
       String password,
@@ -337,10 +390,11 @@ class VPN {
     assert(vpnUsername != null);
     assert(vpnPassword != null);
     await vpnLogin(vpnUsername: vpnUsername, vpnPassword: vpnPassword);
-    var response = await _dio.post(peVpnLoginUrl,
+    var response = await _dio.post(
+        Utils.convert2vpnUrl('${tyBaseUrl}/index1.asp'),
         data: {'username': username, 'password': password, 'chkuser': 'true'});
     response = await _dio.get(
-        'https://vpn.just.edu.cn/xsgl/,DanaInfo=tyxy.just.edu.cn+cjcx.asp',
+        Utils.convert2vpnUrl('${tyBaseUrl}/xsgl/cjcx.asp'),
         options: Options(responseDecoder: gbk2Utf8Decoder));
     var location = response.headers['location'];
     if (location != null &&
@@ -348,7 +402,7 @@ class VPN {
         location[0] == 'https://vpn.just.edu.cn/dana-na/auth/welcome.cgi') {
       throw JustVPNError('VPN系统访问不通');
     }
-    vpnLogout();
+    unawaited(vpnLogout());
     return response.data;
   }
 
@@ -417,14 +471,16 @@ class VPN {
         password: password,
         vpnUsername: vpnUsername,
         vpnPassword: vpnPassword);
-    var response = await _dio.post(jwVpnCourseUrl, data: {
-      // 'cj0701id': '',
-      // 'zc': '',
-      // 'demo': '',
-      'xnxq01id': kksj,
-      // 'sfFD': '1',
-    });
-    jwVpnLogout().then((value) => vpnLogout());
+    var response = await _dio.post(
+        Utils.convert2vpnUrl('${jwBaseUrl}/jsxsd/xskb/xskb_list.do'),
+        data: {
+          // 'cj0701id': '',
+          // 'zc': '',
+          // 'demo': '',
+          'xnxq01id': kksj,
+          // 'sfFD': '1',
+        });
+    unawaited(jwVpnLogout().then((value) => vpnLogout()));
     return response.data;
   }
 
@@ -442,8 +498,8 @@ class VPN {
         password: password,
         vpnUsername: vpnUsername,
         vpnPassword: vpnPassword);
-    var response = await _dio.get(
-        'https://vpn.just.edu.cn/jsxsd/xspj/,DanaInfo=jwgl.just.edu.cn,Port=8080+xspj_find.do');
+    var response = await _dio
+        .get(Utils.convert2vpnUrl('${jwBaseUrl}/jsxsd/xspj/xspj_find.do'));
     var result = parse(response.data)
         .querySelector('#Form1 tbody')
         .children[1]
@@ -477,7 +533,7 @@ class VPN {
       list.add(PJCourse(l[0].text, l[1].text, l[2].text, l[3].text, l[4].text,
           l[5].text, l[6].text, m.group(1)));
     });
-    jwVpnLogout().then((value) => vpnLogout());
+    unawaited(jwVpnLogout().then((value) => vpnLogout()));
     return list;
   }
 

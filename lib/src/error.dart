@@ -12,7 +12,7 @@ class JustAccountError extends Error {
 class JustVPNError extends Error {
   final Object message;
 
-  JustVPNError([this.message]);
+  JustVPNError([this.message = 'VPN系统错误']);
 
   @override
   String toString() {

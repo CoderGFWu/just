@@ -4,10 +4,12 @@ import 'dart:io';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/adapter.dart';
 import 'package:dio/dio.dart';
+import 'package:gbk2utf8/gbk2utf8.dart' as dd;
 import 'package:html/parser.dart';
 import 'package:just/src/pj_course.dart';
 import 'package:just/src/private_cookie_manager.dart';
-import 'package:gbk2utf8/gbk2utf8.dart' as dd;
+import 'package:pedantic/pedantic.dart';
+
 import 'error.dart';
 
 class JUST {
@@ -229,7 +231,7 @@ class JUST {
       list.add(PJCourse(l[0].text, l[1].text, l[2].text, l[3].text, l[4].text,
           l[5].text, l[6].text, m.group(1)));
     });
-    jwLogout();
+    unawaited(jwLogout());
     return list;
   }
 

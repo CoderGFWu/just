@@ -9,16 +9,6 @@ import 'package:just/src/private_cookie_manager.dart';
 import '../error.dart';
 
 class YJS {
-  static const jwLoginPostUrl =
-      'http://jwgl.just.edu.cn:8080/jsxsd/xk/LoginToXk';
-  static const jwHomeUrl =
-      'http://jwgl.just.edu.cn:8080/jsxsd/framework/xsMain.jsp';
-  static const jwSetPasswordUrl =
-      'http://jwgl.just.edu.cn:8080/jsxsd/grsz/grsz_xgmm_beg.do';
-  static const jwCourseUrl =
-      'http://jwgl.just.edu.cn:8080/jsxsd/xskb/xskb_list.do';
-  static const jwScoreUrl = 'http://jwgl.just.edu.cn:8080/jsxsd/kscj/cjcx_list';
-  static const tyLoginUrl = 'http://tyxy.just.edu.cn/login.asp';
   static Dio _dio;
   static final cookieJar = CookieJar();
 
@@ -42,7 +32,7 @@ class YJS {
       contentType: 'application/x-www-form-urlencoded',
       baseUrl: 'http://yjsinfo.just.edu.cn',
       followRedirects: false,
-      connectTimeout: 20000,
+      connectTimeout: 10000,
       validateStatus: (status) {
         return status < 500;
       },
@@ -54,7 +44,9 @@ class YJS {
     return _instance;
   }
 
-  Future<void> validate(String username, String password) async {
+  Future<void> validate({String username, String password}) async {
+    assert(username != null);
+    assert(password != null);
     var response = await _dio.get('/pyxx/login.aspx');
     var form = <String, String>{};
     parse(response.data).querySelectorAll('input').forEach((element) {
@@ -71,7 +63,9 @@ class YJS {
     }
   }
 
-  Future<Response> login(String username, String password) async {
+  Future<Response> login({String username, String password}) async {
+    assert(username != null);
+    assert(password != null);
     var response = await _dio.get('/pyxx/login.aspx');
     var form = <String, String>{};
     parse(response.data).querySelectorAll('input').forEach((element) {
@@ -90,20 +84,26 @@ class YJS {
     return response;
   }
 
-  Future<String> getCourse(String username, String password) async {
-    await login(username, password);
+  Future<String> getCourse({String username, String password}) async {
+    assert(username != null);
+    assert(password != null);
+    await login(username: username, password: password);
     var response = await _dio.get('/pyxx/pygl/kbcx_xs.aspx');
     return response.data;
   }
 
-  Future<String> getScore(String username, String password) async {
-    await login(username, password);
+  Future<String> getScore({String username, String password}) async {
+    assert(username != null);
+    assert(password != null);
+    await login(username: username, password: password);
     var response = await _dio.get('/pyxx/grgl/xskccjcx.aspx');
     return response.data;
   }
 
-  Future<String> getCookie(String username, String password) async {
-    var response = await login(username, password);
+  Future<String> getCookie({String username, String password}) async {
+    assert(username != null);
+    assert(password != null);
+    var response = await login(username: username, password: password);
     String cookie = response.request.headers[HttpHeaders.cookieHeader];
     return cookie;
   }
