@@ -300,6 +300,52 @@ class JUST {
     return resp.data;
   }
 
+  Future<String> getSportClub({String username, String password}) async {
+    _dio.transformer = RemoveTransformer();
+    var resp = await _dio.post('http://tyxy.just.edu.cn/index1.asp',
+        data: {'username': username, 'password': password, 'chkuser': 'true'});
+    _dio.transformer = DefaultTransformer();
+    resp = await _dio.get(
+        'http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=jlbcx',
+        options: Options(responseDecoder: gbk2Utf8Decoder));
+    return resp.data;
+  }
+
+  Future<String> getSportMorning({String username, String password}) async {
+    _dio.transformer = RemoveTransformer();
+    var resp = await _dio.post('http://tyxy.just.edu.cn/index1.asp',
+        data: {'username': username, 'password': password, 'chkuser': 'true'});
+    _dio.transformer = DefaultTransformer();
+    resp = await _dio.get('http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=zccx',
+        options: Options(responseDecoder: gbk2Utf8Decoder));
+    return resp.data;
+  }
+
+  Future<Map<String, String>> getSportMorningCookie(
+      {String username, String password}) async {
+    _dio.transformer = RemoveTransformer();
+    var resp = await _dio.post('http://tyxy.just.edu.cn/index1.asp',
+        data: {'username': username, 'password': password, 'chkuser': 'true'});
+    _dio.transformer = DefaultTransformer();
+    resp = await _dio.get('http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=zccx',
+        options: Options(responseDecoder: gbk2Utf8Decoder));
+    String cookie = resp.request.headers[HttpHeaders.cookieHeader];
+    return {'location': resp.request.uri.toString(), 'cookie': cookie};
+  }
+
+  Future<Map<String, String>> getSportClubCookie(
+      {String username, String password}) async {
+    _dio.transformer = RemoveTransformer();
+    var resp = await _dio.post('http://tyxy.just.edu.cn/index1.asp',
+        data: {'username': username, 'password': password, 'chkuser': 'true'});
+    _dio.transformer = DefaultTransformer();
+    resp = await _dio.get(
+        'http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=jlbcx',
+        options: Options(responseDecoder: gbk2Utf8Decoder));
+    String cookie = resp.request.headers[HttpHeaders.cookieHeader];
+    return {'location': resp.request.uri.toString(), 'cookie': cookie};
+  }
+
   Future<bool> resetPassword({String user, String idCard}) async {
     var response = await _dio.post('/jsxsd/system/resetPasswd.do',
         data: {'account': user, 'sfzjh': idCard});

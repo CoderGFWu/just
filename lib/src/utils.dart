@@ -7,8 +7,14 @@ class Utils {
     if (pathSegments.isNotEmpty) {
       lastPath = pathSegments.removeLast();
     }
-    baseUrl +=
-        '${pathSegments.join("/")}/,DanaInfo=${uri.host},Port=${uri.port}';
+    if (pathSegments.isEmpty) {
+      baseUrl += ',DanaInfo=${uri.host}';
+    } else {
+      baseUrl += '${pathSegments.join("/")}/,DanaInfo=${uri.host}';
+    }
+    if (uri.port != 80) {
+      baseUrl += ',Port=${uri.port}';
+    }
     if (lastPath.isNotEmpty) {
       baseUrl += '+${lastPath}';
     }

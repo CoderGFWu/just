@@ -406,6 +406,90 @@ class VPN {
     return response.data;
   }
 
+  Future<String> getSportClub(
+      {String vpnUsername,
+      String vpnPassword,
+      String username,
+      String password}) async {
+    assert(username != null);
+    assert(password != null);
+    assert(vpnUsername != null);
+    assert(vpnPassword != null);
+    await vpnLogin(vpnUsername: vpnUsername, vpnPassword: vpnPassword);
+    var resp = await _dio.post(
+        Utils.convert2vpnUrl('http://tyxy.just.edu.cn/index1.asp'),
+        data: {'username': username, 'password': password, 'chkuser': 'true'});
+    resp = await _dio.get(
+        Utils.convert2vpnUrl(
+            'http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=jlbcx'),
+        options: Options(responseDecoder: gbk2Utf8Decoder));
+    unawaited(vpnLogout());
+    return resp.data;
+  }
+
+  Future<String> getSportMorning(
+      {String vpnUsername,
+      String vpnPassword,
+      String username,
+      String password}) async {
+    assert(username != null);
+    assert(password != null);
+    assert(vpnUsername != null);
+    assert(vpnPassword != null);
+    await vpnLogin(vpnUsername: vpnUsername, vpnPassword: vpnPassword);
+    var resp = await _dio.post(
+        Utils.convert2vpnUrl('http://tyxy.just.edu.cn/index1.asp'),
+        data: {'username': username, 'password': password, 'chkuser': 'true'});
+    resp = await _dio.get(
+        Utils.convert2vpnUrl(
+            'http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=zccx'),
+        options: Options(responseDecoder: gbk2Utf8Decoder));
+    unawaited(vpnLogout());
+    return resp.data;
+  }
+
+  Future<Map<String, String>> getSportMorningCookie(
+      {String vpnUsername,
+      String vpnPassword,
+      String username,
+      String password}) async {
+    assert(username != null);
+    assert(password != null);
+    assert(vpnUsername != null);
+    assert(vpnPassword != null);
+    await vpnLogin(vpnUsername: vpnUsername, vpnPassword: vpnPassword);
+    var resp = await _dio.post(
+        Utils.convert2vpnUrl('http://tyxy.just.edu.cn/index1.asp'),
+        data: {'username': username, 'password': password, 'chkuser': 'true'});
+    resp = await _dio.get(
+        Utils.convert2vpnUrl(
+            'http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=zccx'),
+        options: Options(responseDecoder: gbk2Utf8Decoder));
+    String cookie = resp.request.headers[HttpHeaders.cookieHeader];
+    return {'location': resp.request.uri.toString(), 'cookie': cookie};
+  }
+
+  Future<Map<String, String>> getSportClubCookie(
+      {String vpnUsername,
+      String vpnPassword,
+      String username,
+      String password}) async {
+    assert(username != null);
+    assert(password != null);
+    assert(vpnUsername != null);
+    assert(vpnPassword != null);
+    await vpnLogin(vpnUsername: vpnUsername, vpnPassword: vpnPassword);
+    var resp = await _dio.post(
+        Utils.convert2vpnUrl('http://tyxy.just.edu.cn/index1.asp'),
+        data: {'username': username, 'password': password, 'chkuser': 'true'});
+    resp = await _dio.get(
+        Utils.convert2vpnUrl(
+            'http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=jlbcx'),
+        options: Options(responseDecoder: gbk2Utf8Decoder));
+    String cookie = resp.request.headers[HttpHeaders.cookieHeader];
+    return {'location': resp.request.uri.toString(), 'cookie': cookie};
+  }
+
 //获取实验系统的Cookie
   Future<Map<String, String>> getSyCookie(
       {String username,
