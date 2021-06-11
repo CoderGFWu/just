@@ -13,6 +13,14 @@ import 'package:pedantic/pedantic.dart';
 import 'error.dart';
 
 class JUST {
+  static const listOfHost = [
+    'http://jwgl.just.edu.cn:8080',
+    'http://202.195.206.35:8080',
+    'http://202.195.206.36:8080',
+    'http://202.195.206.37:8080',
+    'http://202.195.206.38:8080',
+    'http://202.195.206.39:8080'
+  ];
   static const syBaseUrl = 'http://202.195.195.198';
   static Dio _dio;
   static final cookieJar = CookieJar();
@@ -60,35 +68,56 @@ class JUST {
   Future<void> validate({String username, String password}) async {
     assert(username != null);
     assert(password != null);
-    await _dio.get('/jsxsd');
-    var response = await _dio.post(
-      '/jsxsd/xk/LoginToXk',
-      data: {'USERNAME': username, 'PASSWORD': password},
-    );
-    var location = response.headers.value('location');
-    if (location == null ||
-        location != _dio.options.baseUrl + '/jsxsd/framework/xsMain.jsp' &&
-            location != _dio.options.baseUrl + '/jsxsd/grsz/grsz_xgmm_beg.do') {
-      throw JustAccountError('教务系统账号或密码不正确');
-    }
+    await Future.any(listOfHost.map((host) => Future(() async {
+          try {
+            print('try host: $host');
+            await _dio.get('$host/jsxsd');
+            var response = await _dio.post(
+              '$host/jsxsd/xk/LoginToXk',
+              data: {'USERNAME': username, 'PASSWORD': password},
+            );
+            var location = response.headers.value('location');
+            print('location: $location');
+            if (location == null ||
+                location != '$host/jsxsd/framework/xsMain.jsp' &&
+                    location != '$host/jsxsd/grsz/grsz_xgmm_beg.do') {
+              throw JustAccountError('教务系统账号或密码不正确');
+            }
+          } catch (e) {
+            await Future.delayed(
+                Duration(milliseconds: _dio.options.connectTimeout));
+            rethrow;
+          }
+        })));
   }
 
   Future<Response> jwLogin({String username, String password}) async {
     assert(username != null);
     assert(password != null);
     print('登录教务系统');
-    await _dio.get('/jsxsd');
-    var loginData = {'USERNAME': username, 'PASSWORD': password};
-    var response = await _dio.post(
-      '/jsxsd/xk/LoginToXk',
-      data: loginData,
-    );
-    var location = response.headers.value('location');
-    if (location == null ||
-        location != _dio.options.baseUrl + '/jsxsd/framework/xsMain.jsp' &&
-            location != _dio.options.baseUrl + '/jsxsd/grsz/grsz_xgmm_beg.do') {
-      throw JustAccountError('教务系统账号或密码不正确');
-    }
+    var response = await Future.any(listOfHost.map((host) => Future(() async {
+          try {
+            print('try host: $host');
+            await _dio.get('$host/jsxsd');
+            var response = await _dio.post(
+              '$host/jsxsd/xk/LoginToXk',
+              data: {'USERNAME': username, 'PASSWORD': password},
+            );
+            var location = response.headers.value('location');
+            print('location: $location');
+            if (location == null ||
+                location != '$host/jsxsd/framework/xsMain.jsp' &&
+                    location != '$host/jsxsd/grsz/grsz_xgmm_beg.do') {
+              throw JustAccountError('教务系统账号或密码不正确');
+            }
+            setHost(host);
+            return response;
+          } catch (e) {
+            await Future.delayed(
+                Duration(milliseconds: _dio.options.connectTimeout));
+            rethrow;
+          }
+        })));
     return response;
   }
 
