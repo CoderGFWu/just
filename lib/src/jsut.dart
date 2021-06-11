@@ -13,14 +13,6 @@ import 'package:pedantic/pedantic.dart';
 import 'error.dart';
 
 class JUST {
-  static const listOfHost = [
-    'http://jwgl.just.edu.cn:8080/jsxsd/',
-    'http://202.195.206.35:8080/jsxsd/',
-    'http://202.195.206.36:8080/jsxsd/',
-    'http://202.195.206.37:8080/jsxsd/',
-    'http://202.195.206.38:8080/jsxsd/',
-    'http://202.195.206.39:8080/jsxsd/'
-  ];
   static const syBaseUrl = 'http://202.195.195.198';
   static Dio _dio;
   static final cookieJar = CookieJar();
@@ -68,22 +60,7 @@ class JUST {
   Future<void> validate({String username, String password}) async {
     assert(username != null);
     assert(password != null);
-    final result = await Future.any(
-      listOfHost.map(
-        (host) => Future(() async {
-          try {
-            final response = await _dio.get(host);
-            return response;
-          } catch (e) {
-            print(e);
-            await Future.delayed(
-                Duration(milliseconds: _dio.options.connectTimeout));
-            throw JustAccountError('连接教务系统失败');
-          }
-        }),
-      ),
-    );
-    setHost(result.request.uri.origin);
+    await _dio.get('/jsxsd');
     var response = await _dio.post(
       '/jsxsd/xk/LoginToXk',
       data: {'USERNAME': username, 'PASSWORD': password},
@@ -100,22 +77,7 @@ class JUST {
     assert(username != null);
     assert(password != null);
     print('登录教务系统');
-    final result = await Future.any(
-      listOfHost.map(
-        (host) => Future(() async {
-          try {
-            final response = await _dio.get(host);
-            return response;
-          } catch (e) {
-            print(e);
-            await Future.delayed(
-                Duration(milliseconds: _dio.options.connectTimeout));
-            throw JustAccountError('连接教务系统失败');
-          }
-        }),
-      ),
-    );
-    setHost(result.request.uri.origin);
+    await _dio.get('/jsxsd');
     var loginData = {'USERNAME': username, 'PASSWORD': password};
     var response = await _dio.post(
       '/jsxsd/xk/LoginToXk',
