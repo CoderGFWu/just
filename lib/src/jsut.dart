@@ -41,8 +41,8 @@ class JUST {
       };
     };
 
-    // _dio.interceptors.add(PrivateCookieManager(cookieJar));
-    _dio.interceptors.add(CookieManager(cookieJar));
+    var cookieManager = CookieManager(cookieJar);
+    _dio.interceptors.add(cookieManager);
     _dio.options = BaseOptions(
       contentType: 'application/x-www-form-urlencoded',
       baseUrl: 'http://jwgl.just.edu.cn:8080',
@@ -176,10 +176,11 @@ class JUST {
   Future<Map<String, String>> getCookie(
       {required String username, required String password}) async {
     var response = await jwLogin(username: username, password: password);
-    // var location = response.headers.value('location');
     response = await _dio.get('/jsxsd/framework/xsMain.jsp');
-    var cookie = response.headers[HttpHeaders.cookieHeader]?.first ?? '';
-    return {'location': response.realUri.toString(), 'cookie': cookie};
+    var cookies = await cookieJar.loadForRequest(response.realUri);
+    var cookieString =
+        cookies.map((cookie) => '${cookie.name}=${cookie.value}').join(' ');
+    return {'location': response.realUri.toString(), 'cookie': cookieString};
   }
 
   Future<List<PJCourse>> getPjData(
@@ -247,8 +248,10 @@ class JUST {
     var location = response.headers['location']?[0];
     response =
         await _dio.get("$syBaseUrl${response.headers.value("location")}");
-    var cookie = response.headers[HttpHeaders.cookieHeader]?.first ?? '';
-    return {'location': location ?? '', 'cookie': cookie};
+    var cookies = await cookieJar.loadForRequest(response.realUri);
+    var cookieString =
+        cookies.map((cookie) => '${cookie.name}=${cookie.value}').join(' ');
+    return {'location': location ?? '', 'cookie': cookieString};
   }
 
   Future<void> validateSy(
