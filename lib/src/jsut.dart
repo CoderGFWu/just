@@ -4,10 +4,10 @@ import 'dart:io';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/adapter.dart';
 import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:gbk2utf8/gbk2utf8.dart' as dd;
 import 'package:html/parser.dart';
 import 'package:just/src/pj_course.dart';
-import 'package:just/src/private_cookie_manager.dart';
 import 'package:pedantic/pedantic.dart';
 
 import 'error.dart';
@@ -22,13 +22,13 @@ class JUST {
     'http://202.195.206.39:8080'
   ];
   static const syBaseUrl = 'http://202.195.195.198';
-  static Dio _dio;
+  static late Dio _dio;
   static final cookieJar = CookieJar();
 
   factory JUST() => _getInstance();
 
   static JUST get instance => _getInstance();
-  static JUST _instance;
+  static JUST? _instance;
 
   JUST._internal() {
     //init
@@ -41,21 +41,26 @@ class JUST {
       };
     };
 
-    _dio.interceptors.add(PrivateCookieManager(cookieJar));
+    // _dio.interceptors.add(PrivateCookieManager(cookieJar));
+    _dio.interceptors.add(CookieManager(cookieJar));
     _dio.options = BaseOptions(
       contentType: 'application/x-www-form-urlencoded',
       baseUrl: 'http://jwgl.just.edu.cn:8080',
       followRedirects: false,
       connectTimeout: 10000,
       validateStatus: (status) {
-        return status < 500;
+        if (status != null) {
+          return status < 500;
+        } else {
+          return false;
+        }
       },
     );
   }
 
   static JUST _getInstance() {
     _instance ??= JUST._internal();
-    return _instance;
+    return _instance!;
   }
 
   void setHost(String host) {
@@ -65,9 +70,8 @@ class JUST {
     print(_dio.options.baseUrl);
   }
 
-  Future<void> validate({String username, String password}) async {
-    assert(username != null);
-    assert(password != null);
+  Future<void> validate(
+      {required String username, required String password}) async {
     await Future.any(listOfHost.map((host) => Future(() async {
           try {
             print('try host: $host');
@@ -91,9 +95,8 @@ class JUST {
         })));
   }
 
-  Future<Response> jwLogin({String username, String password}) async {
-    assert(username != null);
-    assert(password != null);
+  Future<Response> jwLogin(
+      {required String username, required String password}) async {
     print('登录教务系统');
     var response = await Future.any(listOfHost.map((host) => Future(() async {
           try {
@@ -133,10 +136,9 @@ class JUST {
   }
 
   Future<String> getCourse(
-      {String username, String password, String kksj}) async {
-    assert(username != null);
-    assert(password != null);
-    assert(kksj != null);
+      {required String username,
+      required String password,
+      required String kksj}) async {
     await jwLogin(username: username, password: password);
     var response = await _dio.post('/jsxsd/xskb/xskb_list.do', data: {
       // 'cj0701id': '',
@@ -149,11 +151,10 @@ class JUST {
   }
 
   Future<String> getScore(
-      {String username, String password, String kksj, String xsfs}) async {
-    assert(username != null);
-    assert(password != null);
-    assert(kksj != null);
-    assert(xsfs != null);
+      {required String username,
+      required String password,
+      required String kksj,
+      required String xsfs}) async {
     await jwLogin(username: username, password: password);
     var response = await _dio.post('/jsxsd/kscj/cjcx_list',
         data: {'kksj': kksj, 'kcxz': '', 'kcmc': '', 'xsfs': xsfs});
@@ -161,10 +162,9 @@ class JUST {
   }
 
   Future<String> getScore2(
-      {String username, String password, String kksj}) async {
-    assert(username != null);
-    assert(password != null);
-    assert(kksj != null);
+      {required String username,
+      required String password,
+      required String kksj}) async {
     await jwLogin(username: username, password: password);
     var response = await _dio.post(
       '/jsxsd/kscj/cjtd_add_left',
@@ -174,88 +174,93 @@ class JUST {
   }
 
   Future<Map<String, String>> getCookie(
-      {String username, String password}) async {
-    assert(username != null);
-    assert(password != null);
+      {required String username, required String password}) async {
     var response = await jwLogin(username: username, password: password);
     // var location = response.headers.value('location');
     response = await _dio.get('/jsxsd/framework/xsMain.jsp');
-    String cookie = response.request.headers[HttpHeaders.cookieHeader];
-    return {'location': response.request.uri.toString(), 'cookie': cookie};
+    var cookie = response.headers[HttpHeaders.cookieHeader]?.first ?? '';
+    return {'location': response.realUri.toString(), 'cookie': cookie};
   }
 
-  Future<List<PJCourse>> getPjData({String username, String password}) async {
-    assert(username != null);
-    assert(password != null);
+  Future<List<PJCourse>> getPjData(
+      {required String username, required String password}) async {
     await jwLogin(username: username, password: password);
     var response = await _dio.get('/jsxsd/xspj/xspj_find.do');
     var result = parse(response.data)
         .querySelector('#Form1 tbody')
-        .children[1]
+        ?.children[1]
         .querySelectorAll('a');
+    if (result == null) {
+      return [];
+    }
     var list = <PJCourse>[];
     //实验教学评价链接
-    var sy = result[0].attributes['href'];
+    var sy = result[0].attributes['href'] ?? '';
     //理论教学评价链接
-    var ll = result[1].attributes['href'];
+    var ll = result[1].attributes['href'] ?? '';
     //全部
-    var all = result[2].attributes['href'];
+    var all = result[2].attributes['href'] ?? '';
     response = await _dio.get(sy);
     var syData =
-        parse(response.data).querySelector('#dataList').querySelectorAll('tr');
-    syData.removeAt(0);
-    syData.forEach((element) {
+        parse(response.data).querySelector('#dataList')?.querySelectorAll('tr');
+    syData?.removeAt(0);
+    syData?.forEach((element) {
       var l = element.querySelectorAll('td');
       var regExp = RegExp(r"'(.*)'");
-      var m = regExp.firstMatch(l[7].querySelector('a').attributes['href']);
+      var m =
+          regExp.firstMatch(l[7].querySelector('a')?.attributes['href'] ?? '');
       list.add(PJCourse(l[0].text, l[1].text, l[2].text, l[3].text, l[4].text,
-          l[5].text, l[6].text, m.group(1)));
+          l[5].text, l[6].text, m?.group(1) ?? ''));
     });
     response = await _dio.get(ll);
     var llData =
-        parse(response.data).querySelector('#dataList').querySelectorAll('tr');
-    llData.removeAt(0);
-    llData.forEach((element) {
+        parse(response.data).querySelector('#dataList')?.querySelectorAll('tr');
+    llData?.removeAt(0);
+    llData?.forEach((element) {
       var l = element.querySelectorAll('td');
       var regExp = RegExp(r"'(.*)'");
-      var m = regExp.firstMatch(l[7].querySelector('a').attributes['href']);
+      var m =
+          regExp.firstMatch(l[7].querySelector('a')?.attributes['href'] ?? '');
       list.add(PJCourse(l[0].text, l[1].text, l[2].text, l[3].text, l[4].text,
-          l[5].text, l[6].text, m.group(1)));
+          l[5].text, l[6].text, m?.group(1) ?? ''));
     });
     unawaited(jwLogout());
     return list;
   }
 
   Future<Map<String, String>> getSyCookie(
-      {String username, String password}) async {
+      {required String username, required String password}) async {
     var response = await _dio.get('$syBaseUrl/sy/');
     String data = response.data;
     var inputElements = parse(data).querySelectorAll('input');
     var submitData = <String, String>{};
     inputElements.forEach((element) {
-      submitData
-          .addAll({element.attributes['name']: element.attributes['value']});
+      submitData.addAll({
+        element.attributes['name'] ?? '': element.attributes['value'] ?? ''
+      });
     });
     submitData['Login1\$UserName'] = username;
     submitData['Login1\$PassWord'] = password;
     submitData['Login1\$ImageButton1.x'] = '26';
     submitData['Login1\$ImageButton1.y'] = '9';
     response = await _dio.post('$syBaseUrl/sy/', data: submitData);
-    var location = response.headers['location'][0];
+    var location = response.headers['location']?[0];
     response =
         await _dio.get("$syBaseUrl${response.headers.value("location")}");
-    String cookie = response.request.headers[HttpHeaders.cookieHeader];
-    return {'location': location, 'cookie': cookie};
+    var cookie = response.headers[HttpHeaders.cookieHeader]?.first ?? '';
+    return {'location': location ?? '', 'cookie': cookie};
   }
 
-  Future<void> validateSy({String username, String password}) async {
+  Future<void> validateSy(
+      {required String username, required String password}) async {
     var response = await _dio.get('$syBaseUrl/sy/');
     String data = response.data;
     var inputElements = parse(data).querySelectorAll('input');
     var submitData = <String, String>{};
     inputElements.forEach((element) {
-      submitData
-          .addAll({element.attributes['name']: element.attributes['value']});
+      submitData.addAll({
+        element.attributes['name'] ?? '': element.attributes['value'] ?? ''
+      });
     });
     submitData['Login1\$UserName'] = username;
     submitData['Login1\$PassWord'] = password;
@@ -269,7 +274,8 @@ class JUST {
         await _dio.get("$syBaseUrl${response.headers.value("location")}");
   }
 
-  Future<void> validatePe({String username, String password}) async {
+  Future<void> validatePe(
+      {required String username, required String password}) async {
     _dio.transformer = RemoveTransformer();
     var response = await _dio.post('http://tyxy.just.edu.cn/index1.asp',
         data: {'username': username, 'password': password, 'chkuser': 'true'},
@@ -281,7 +287,8 @@ class JUST {
     }
   }
 
-  Future<String> getSportScore({String username, String password}) async {
+  Future<String> getSportScore(
+      {required String username, required String password}) async {
     _dio.transformer = RemoveTransformer();
     var resp = await _dio.post('http://tyxy.just.edu.cn/index1.asp',
         data: {'username': username, 'password': password, 'chkuser': 'true'});
@@ -291,7 +298,8 @@ class JUST {
     return resp.data;
   }
 
-  Future<String> getSportClub({String username, String password}) async {
+  Future<String> getSportClub(
+      {required String username, required String password}) async {
     _dio.transformer = RemoveTransformer();
     var resp = await _dio.post('http://tyxy.just.edu.cn/index1.asp',
         data: {'username': username, 'password': password, 'chkuser': 'true'});
@@ -302,7 +310,8 @@ class JUST {
     return resp.data;
   }
 
-  Future<String> getSportMorning({String username, String password}) async {
+  Future<String> getSportMorning(
+      {required String username, required String password}) async {
     _dio.transformer = RemoveTransformer();
     var resp = await _dio.post('http://tyxy.just.edu.cn/index1.asp',
         data: {'username': username, 'password': password, 'chkuser': 'true'});
@@ -313,19 +322,19 @@ class JUST {
   }
 
   Future<Map<String, String>> getSportMorningCookie(
-      {String username, String password}) async {
+      {required String username, required String password}) async {
     _dio.transformer = RemoveTransformer();
     var resp = await _dio.post('http://tyxy.just.edu.cn/index1.asp',
         data: {'username': username, 'password': password, 'chkuser': 'true'});
     _dio.transformer = DefaultTransformer();
     resp = await _dio.get('http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=zccx',
         options: Options(responseDecoder: gbk2Utf8Decoder));
-    String cookie = resp.request.headers[HttpHeaders.cookieHeader];
-    return {'location': resp.request.uri.toString(), 'cookie': cookie};
+    var cookie = resp.headers[HttpHeaders.cookieHeader]?.first ?? '';
+    return {'location': resp.realUri.toString(), 'cookie': cookie};
   }
 
   Future<Map<String, String>> getSportClubCookie(
-      {String username, String password}) async {
+      {required String username, required String password}) async {
     _dio.transformer = RemoveTransformer();
     var resp = await _dio.post('http://tyxy.just.edu.cn/index1.asp',
         data: {'username': username, 'password': password, 'chkuser': 'true'});
@@ -333,11 +342,12 @@ class JUST {
     resp = await _dio.get(
         'http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=jlbcx',
         options: Options(responseDecoder: gbk2Utf8Decoder));
-    String cookie = resp.request.headers[HttpHeaders.cookieHeader];
-    return {'location': resp.request.uri.toString(), 'cookie': cookie};
+    var cookie = resp.headers[HttpHeaders.cookieHeader]?.first ?? '';
+    return {'location': resp.realUri.toString(), 'cookie': cookie};
   }
 
-  Future<bool> resetPassword({String user, String idCard}) async {
+  Future<bool> resetPassword(
+      {required String user, required String idCard}) async {
     var response = await _dio.post('/jsxsd/system/resetPasswd.do',
         data: {'account': user, 'sfzjh': idCard});
     var regExp = RegExp(r"alert\('(.*)'\)");
@@ -350,7 +360,9 @@ class JUST {
   }
 
   Future<bool> changePassword(
-      {String account, String oldPassword, String newPassword}) async {
+      {required String account,
+      required String oldPassword,
+      required String newPassword}) async {
     var flag = true;
     await validate(username: account, password: oldPassword);
     var form = {
