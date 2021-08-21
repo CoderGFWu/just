@@ -332,8 +332,10 @@ class JUST {
     _dio.transformer = DefaultTransformer();
     resp = await _dio.get('http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=zccx',
         options: Options(responseDecoder: gbk2Utf8Decoder));
-    var cookie = resp.headers[HttpHeaders.cookieHeader]?.first ?? '';
-    return {'location': resp.realUri.toString(), 'cookie': cookie};
+    var cookies = await cookieJar.loadForRequest(resp.realUri);
+    var cookieString =
+        cookies.map((cookie) => '${cookie.name}=${cookie.value}').join(' ');
+    return {'location': resp.realUri.toString(), 'cookie': cookieString};
   }
 
   Future<Map<String, String>> getSportClubCookie(
@@ -345,8 +347,10 @@ class JUST {
     resp = await _dio.get(
         'http://tyxy.just.edu.cn/zcgl/xskwcx.asp?action=jlbcx',
         options: Options(responseDecoder: gbk2Utf8Decoder));
-    var cookie = resp.headers[HttpHeaders.cookieHeader]?.first ?? '';
-    return {'location': resp.realUri.toString(), 'cookie': cookie};
+    var cookies = await cookieJar.loadForRequest(resp.realUri);
+    var cookieString =
+        cookies.map((cookie) => '${cookie.name}=${cookie.value}').join(' ');
+    return {'location': resp.realUri.toString(), 'cookie': cookieString};
   }
 
   Future<bool> resetPassword(
