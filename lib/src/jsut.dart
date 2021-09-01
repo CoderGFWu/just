@@ -87,6 +87,8 @@ class JUST {
                     location != '$host/jsxsd/grsz/grsz_xgmm_beg.do') {
               throw JustAccountError('教务系统账号或密码不正确');
             }
+          } on JustAccountError {
+            rethrow;
           } catch (e) {
             await Future.delayed(
                 Duration(milliseconds: _dio.options.connectTimeout));
@@ -115,6 +117,8 @@ class JUST {
             }
             setHost(host);
             return response;
+          } on JustAccountError {
+            rethrow;
           } catch (e) {
             await Future.delayed(
                 Duration(milliseconds: _dio.options.connectTimeout));
