@@ -14,7 +14,7 @@ import 'error.dart';
 
 class JUST {
   static const listOfHost = [
-    'http://jwgl.just.edu.cn:8080',
+    // 'http://jwgl.just.edu.cn:8080',
     'http://202.195.206.35:8080',
     'http://202.195.206.36:8080',
     'http://202.195.206.37:8080',
@@ -70,8 +70,30 @@ class JUST {
     print(_dio.options.baseUrl);
   }
 
+  ///优先使用 http://jwgl.just.edu.cn:8080进行验证
+  ///此地址验证成功直接返回，验证失败尝试其它host
   Future<void> validate(
       {required String username, required String password}) async {
+    try {
+      print('try host: default');
+      await _dio.get('/jsxsd');
+      var response = await _dio.post(
+        '/jsxsd/xk/LoginToXk',
+        data: {'USERNAME': username, 'PASSWORD': password},
+      );
+      var location = response.headers.value('location');
+      print('location: $location');
+      if (location == null ||
+          location !=
+                  'http://jwgl.just.edu.cn:8080/jsxsd/framework/xsMain.jsp' &&
+              location !=
+                  'http://jwgl.just.edu.cn:8080/jsxsd/grsz/grsz_xgmm_beg.do') {
+        throw JustAccountError('教务系统账号或密码不正确');
+      }
+      return;
+    } catch (e) {
+      print('默认host登录失败: $e');
+    }
     await Future.any(listOfHost.map((host) => Future(() async {
           try {
             print('try host: $host');
@@ -100,6 +122,26 @@ class JUST {
   Future<Response> jwLogin(
       {required String username, required String password}) async {
     print('登录教务系统');
+    try {
+      print('try host: default');
+      await _dio.get('/jsxsd');
+      var response = await _dio.post(
+        '/jsxsd/xk/LoginToXk',
+        data: {'USERNAME': username, 'PASSWORD': password},
+      );
+      var location = response.headers.value('location');
+      print('location: $location');
+      if (location == null ||
+          location !=
+                  'http://jwgl.just.edu.cn:8080/jsxsd/framework/xsMain.jsp' &&
+              location !=
+                  'http://jwgl.just.edu.cn:8080/jsxsd/grsz/grsz_xgmm_beg.do') {
+        throw JustAccountError('教务系统账号或密码不正确');
+      }
+      return response;
+    } catch (e) {
+      print('默认host登录失败: $e');
+    }
     var response = await Future.any(listOfHost.map((host) => Future(() async {
           try {
             print('try host: $host');
