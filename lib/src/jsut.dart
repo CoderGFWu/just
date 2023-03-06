@@ -8,7 +8,7 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:gbk2utf8/gbk2utf8.dart' as dd;
 import 'package:html/parser.dart';
 import 'package:just/src/pj_course.dart';
-import 'package:pedantic/pedantic.dart';
+
 
 import 'error.dart';
 
