@@ -16,6 +16,6 @@ dependencies:
 #  path: ^1.7.0
 
 dev_dependencies:
-  pedantic:
-    git: https://github.com/google/pedantic.git
+  #pedantic:
+  #  git: https://github.com/google/pedantic.git
   test: ^1.17.10
